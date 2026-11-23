@@ -1,55 +1,66 @@
-/* ============ PELANGGAN ============ */
-let cart = {n:null, g:null};
+/* ============ PELANGGAN (Take Away) ============ */
+let cart = {n:null, g:null}, f = {}, co = {nama:"", hp:"", pay:"QRIS"};
+const total = c => (c.n ? c.n.pcs * HARGA_NUGGET_PER_PCS : 0) + (c.g ? c.g.cup * HARGA_DALGONA : 0);
+const chips = (key, opts, sel, fn = "setF") => `<div class="chips">${opts.map(([v, l]) => `<button class="ch ${String(v) === String(sel) ? "on" : ""}" onclick="${fn}('${key}','${v}')">${l}</button>`).join("")}</div>`;
+
 async function cust() {
   if (localStorage.getItem("oid")) return track(localStorage.getItem("oid"));
   await loadConfig();
-  const meja = new URLSearchParams(location.search).get("meja");
   cart = {n:null, g:null};
-  $("#app").innerHTML = `<div class="hero"><div class="emo">🍗☕</div><h1>Self Order</h1><p>Pesan, bayar, tunggu — tanpa antre</p></div>
-  <div class="${CARD}"><input id="nm" placeholder="Nama pemesan" class="${IN}">
-    <input id="hp" type="tel" placeholder="No. WhatsApp (08xxx)" class="${IN}">
-    ${meja ? `<div>Meja: <b id="mj">${esc(meja)}</b></div>` :
-      `<select id="mj" class="${IN}"><option>Takeaway</option>${[1,2,3,4,5,6,7,8,9,10].map(i => `<option>${i}</option>`).join("")}</select>`}</div>
-  <div class="${CARD} menu-n"><b class="menu-t">🍗 Nugget Geprek</b> <span class="text-sm text-stone-500">${rp(HARGA_NUGGET_PER_PCS * ISI_PER_PORSI)}/porsi (${ISI_PER_PORSI} pcs) · ${rp(HARGA_NUGGET_PER_PCS)}/pcs</span>
-    <select id="nmode" class="${IN} mt-2"><option value="p">Porsi (${ISI_PER_PORSI} pcs)</option><option value="c">Custom pcs</option></select>
-    <input id="nq" type="number" min="1" value="1" class="${IN}">
-    <select id="np" class="${IN}">${[0,1,2,3,4,5].map(i => `<option value="${i}">Pedas level ${i}</option>`).join("")}</select>
-    <input id="nc" placeholder="Catatan" class="${IN}"><button class="${BTN}" onclick="addN()">+ Tambah</button></div>
-  <div class="${CARD} menu-g"><b class="menu-t">☕ Dalgona Coffee</b> <span class="text-sm text-stone-500">${rp(HARGA_DALGONA)}/cup</span>
-    <input id="gq" type="number" min="1" value="1" class="${IN} mt-2">
-    <select id="ge" class="${IN}"><option>Es Normal</option><option>Es Sedikit</option><option>Tanpa Es</option></select>
-    <select id="gg" class="${IN}"><option>Normal</option><option>Less</option></select>
-    <input id="gc" placeholder="Catatan" class="${IN}"><button class="${BTN}" onclick="addG()">+ Tambah</button></div>
-  <div id="cart"></div>`;
-  drawCart();
+  $("#app").innerHTML = `<div class="hero"><span class="pill">🛍️ Take Away</span><h1>Nugget Geprek<br>&amp; Dalgona Coffee</h1><p>Pesan sendiri, bayar, ambil — tanpa antre</p></div>
+    <div class="grid">${prod("n")}${prod("g")}</div><div id="bar"></div><div id="sheet"></div>`;
 }
-function addN() {
-  const q = Math.max(1, +$("#nq").value || 1);
-  cart.n = {pcs: $("#nmode").value === "p" ? q * ISI_PER_PORSI : q, pedas: +$("#np").value, cat: $("#nc").value};
-  drawCart();
+function prod(k) {
+  const n = k === "n";
+  return `<div class="prod ${n ? "menu-n" : "menu-g"}"><div class="ph" data-e="${n ? "🍗" : "☕"}"><img src="${ASSET_BASE + (n ? GAMBAR_NUGGET : GAMBAR_DALGONA)}" alt="" onerror="this.parentNode.classList.add('nofoto');this.remove()"></div>
+    <div class="pb"><b class="menu-t">${n ? "Nugget Geprek" : "Dalgona Coffee"}</b>
+    <div class="text-sm text-stone-500">${n ? `${rp(HARGA_NUGGET_PER_PCS)}/pcs · ${rp(HARGA_NUGGET_PER_PCS * ISI_PER_PORSI)}/porsi` : `${rp(HARGA_DALGONA)}/cup`}</div>
+    <button class="${BTN} w-full mt-2" onclick="openSheet('${k}')">+ Pesan</button></div></div>`;
 }
-function addG() {
-  cart.g = {cup: Math.max(1, +$("#gq").value || 1), es: $("#ge").value, gula: $("#gg").value, cat: $("#gc").value};
-  drawCart();
+function drawBar() {
+  $("#bar").innerHTML = total(cart) ? `<div class="bar"><div><div class="text-xs text-stone-500">Total</div><b class="text-xl">${rp(total(cart))}</b></div><button class="${BTN}" onclick="drawCo()">Checkout →</button></div>` : "";
 }
-function total(c) { return (c.n ? c.n.pcs * HARGA_NUGGET_PER_PCS : 0) + (c.g ? c.g.cup * HARGA_DALGONA : 0); }
-function drawCart() {
+function openSheet(k) {
+  f = k === "n" ? {k, mode:"p", q:1, pedas:2, cat:""} : {k, q:1, es:"Es Normal", gula:"Normal", cat:""};
+  drawSheet();
+}
+const pcs = () => f.mode === "p" ? f.q * ISI_PER_PORSI : f.q;
+const price = () => f.k === "n" ? pcs() * HARGA_NUGGET_PER_PCS : f.q * HARGA_DALGONA;
+function setF(k, v) { f[k] = k === "pedas" ? +v : v; drawSheet(); }
+function stp(d) { f.q = Math.max(1, f.q + d); drawSheet(); }
+function drawSheet() {
+  const n = f.k === "n";
+  $("#sheet").innerHTML = `<div class="ov" onclick="closeSheet()"></div><div class="sh"><div class="grab"></div>
+    <h2 class="menu-t text-xl mb-3">${n ? "🍗 Nugget Geprek" : "☕ Dalgona Coffee"}</h2>
+    ${n ? `<div class="lbl">Mode</div>${chips("mode", [["p", `Porsi (${ISI_PER_PORSI} pcs)`], ["c", "Custom pcs"]], f.mode)}` : ""}
+    <div class="lbl">${n ? (f.mode === "p" ? "Jumlah porsi" : "Jumlah pcs") : "Jumlah cup"}</div>
+    <div class="step"><button onclick="stp(-1)">−</button><b>${f.q}</b><button onclick="stp(1)">+</button>${n ? `<span class="text-sm text-stone-500">= ${pcs()} pcs</span>` : ""}</div>
+    ${n ? `<div class="lbl">Level pedas</div>${chips("pedas", [0, 1, 2, 3, 4, 5].map(i => [i, i]), f.pedas)}`
+        : `<div class="lbl">Es</div>${chips("es", [["Es Normal", "Normal"], ["Es Sedikit", "Sedikit"], ["Tanpa Es", "Tanpa"]], f.es)}<div class="lbl">Gula</div>${chips("gula", [["Normal", "Normal"], ["Less", "Less"]], f.gula)}`}
+    <input class="${IN} mt-3" placeholder="Catatan (opsional)" value="${esc(f.cat)}" oninput="f.cat=this.value">
+    <button class="${BTN} w-full" onclick="saveItem()">Tambah • ${rp(price())}</button></div>`;
+}
+function saveItem() {
+  if (f.k === "n") cart.n = {pcs:pcs(), pedas:f.pedas, cat:f.cat}; else cart.g = {cup:f.q, es:f.es, gula:f.gula, cat:f.cat};
+  closeSheet(); drawBar();
+}
+function closeSheet() { $("#sheet").innerHTML = ""; }
+function setCo(k, v) { co[k] = v; drawCo(); }
+function rmItem(k) { cart[k] = null; drawBar(); total(cart) ? drawCo() : closeSheet(); }
+function drawCo() {
   const c = cart;
-  $("#cart").innerHTML = `<div class="${CARD}"><b>Keranjang</b>
-    ${c.n ? `<div>Nugget: ${c.n.pcs} pcs · Pedas ${c.n.pedas} <button onclick="cart.n=null;drawCart()">❌</button></div>` : ""}
-    ${c.g ? `<div>Dalgona: ${c.g.cup} cup · ${c.g.es} · Gula ${c.g.gula} <button onclick="cart.g=null;drawCart()">❌</button></div>` : ""}
-    ${!c.n && !c.g ? `<div class="text-stone-400">Kosong</div>` : ""}
-    <div class="text-xl font-bold my-2">Total ${rp(total(c))}</div>
-    <select id="pay" class="${IN}"><option value="QRIS">QRIS Online</option><option value="OFFLINE">Bayar di Kasir (QR)</option></select>
-    <div id="ce" class="text-red-600 text-sm mb-1"></div>
-    <button class="${BTN} w-full" onclick="submitOrder()">Pesan Sekarang</button></div>`;
+  $("#sheet").innerHTML = `<div class="ov" onclick="closeSheet()"></div><div class="sh"><div class="grab"></div><h2 class="menu-t text-xl mb-2">Keranjang · Take Away</h2>
+    ${c.n ? `<div class="row">🍗 Nugget ${c.n.pcs} pcs · Pedas ${c.n.pedas}<button onclick="rmItem('n')">✕</button></div>` : ""}
+    ${c.g ? `<div class="row">☕ Dalgona ${c.g.cup} cup · ${esc(c.g.es)}<button onclick="rmItem('g')">✕</button></div>` : ""}
+    <input class="${IN} mt-2" placeholder="Nama pemesan" value="${esc(co.nama)}" oninput="co.nama=this.value">
+    <input type="tel" class="${IN}" placeholder="No. WhatsApp (08xxx)" value="${esc(co.hp)}" oninput="co.hp=this.value">
+    <div class="lbl">Pembayaran</div>${chips("pay", [["QRIS", "QRIS Online"], ["OFFLINE", "Bayar di Kasir"]], co.pay, "setCo")}
+    <div id="ce" class="text-red-600 text-sm mt-2"></div>
+    <button class="${BTN} w-full mt-2" onclick="submitOrder()">Pesan • ${rp(total(c))}</button></div>`;
 }
 async function submitOrder() {
-  const nama = $("#nm").value.trim(), hp = $("#hp").value.trim();
-  if (!nama || !hp) return $("#ce").textContent = "Nama dan No. WhatsApp wajib diisi";
-  if (!cart.n && !cart.g) return $("#ce").textContent = "Pilih menu dulu";
-  const meja = $("#mj").value || $("#mj").textContent;
-  const r = await api({action:"create_order", nama, hp, meja, nugget:cart.n, dalgona:cart.g, metode:$("#pay").value});
+  if (!co.nama.trim() || !co.hp.trim()) return $("#ce").textContent = "Nama dan No. WhatsApp wajib diisi";
+  const r = await api({action:"create_order", nama:co.nama.trim(), hp:co.hp.trim(), meja:"Takeaway", nugget:cart.n, dalgona:cart.g, metode:co.pay});
   if (r.status !== "success") return $("#ce").textContent = r.message || "Gagal";
   localStorage.setItem("oid", r.id);
   track(r.id);
@@ -65,7 +76,7 @@ async function track(id) {
     if (!built) {
       built = true;
       $("#t").innerHTML = `<div class="${CARD}"><div class="text-sm">ID Pesanan</div><div class="text-xl font-bold">${esc(o.ID_Pesanan)}</div>
-        <div>${esc(o.Nama_Pemesan)} · Meja ${esc(o.Nomor_Meja)} · ${rp(o.Total_Harga)}</div></div>
+        <div>${esc(o.Nama_Pemesan)} · ${esc(o.Nomor_Meja)} · ${rp(o.Total_Harga)}</div></div>
         <div id="pay" class="${CARD} flex flex-col items-center"></div><div id="st"></div>
         <button class="${BTN} mt-3" onclick="newOrder()">Pesan baru</button>`;
       const box = $("#pay");
