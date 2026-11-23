@@ -1,5 +1,5 @@
 // ===== KONFIGURASI =====
-const GAS_WEBAPP_URL = "https://script.google.com/macros/s/GANTI/exec";
+const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxd-wr9nydIqucyd_LooYzCaW2a0Q5vYKAuGdkO6bWEHzuukxxzeBchaL48zrebLGDMxg/exec";
 // QRIS via AstraPay: slug & API key ada di Code.gs (server), bukan di sini, supaya tidak bocor ke browser.
 // Harga & nama kasir TIDAK diedit di sini: ubah di assets/harga.json (satu-satunya tempat).
 let HARGA_NUGGET_PER_PCS = 2000, ISI_PER_PORSI = 5, HARGA_DALGONA = 12000, NAMA_KASIR = "Haris Mutawakkil";
