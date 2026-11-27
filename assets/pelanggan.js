@@ -1,13 +1,21 @@
 /* ============ PELANGGAN (Take Away) ============ */
-let cart = {n:null, g:null}, f = {}, co = {nama:"", hp:"", pay:"QRIS"};
+let OPEN = true, cart = {n:null, g:null}, f = {}, co = {nama:"", hp:"", pay:"QRIS"};
 const total = c => (c.n ? c.n.pcs * HARGA_NUGGET_PER_PCS : 0) + (c.g ? c.g.cup * HARGA_DALGONA : 0);
 const chips = (key, opts, sel, fn = "setF") => `<div class="chips">${opts.map(([v, l]) => `<button class="ch ${String(v) === String(sel) ? "on" : ""}" onclick="${fn}('${key}','${v}')">${l}</button>`).join("")}</div>`;
+
+const payOpt = (v, i, t, d) => `<button class="pay ${co.pay === v ? "on" : ""}" onclick="setCo('pay','${v}')"><span class="pi">${i}</span><span><b>${t}</b><br><small>${d}</small></span></button>`;
+
+const hpCash = () => "0" + NOMOR_CASH.slice(2);
+const tglAmbil = () => BUKA_TANGGAL ? new Date(BUKA_TANGGAL + "T00:00").toLocaleDateString("id-ID", {day:"numeric", month:"long", year:"numeric"}) : "hari ini";
 
 async function cust() {
   if (localStorage.getItem("oid")) return track(localStorage.getItem("oid"));
   await loadConfig();
   cart = {n:null, g:null};
-  $("#app").innerHTML = `<div class="hero"><span class="pill">🛍️ Take Away</span><h1>Nugget Geprek<br>&amp; Dalgona Coffee</h1><p>Pesan sendiri, bayar, ambil — tanpa antre</p></div>
+  const today = new Date().toLocaleDateString("sv-SE", {timeZone:"Asia/Jakarta"});
+  OPEN = !BUKA_TANGGAL || today <= BUKA_TANGGAL;
+  const tgl = tglAmbil();
+  $("#app").innerHTML = `<div class="hero"><span class="pill">${OPEN ? "🛍️ Pre-Order · Take Away" : "🔒 Ditutup"}</span><h1>Nugget Geprek<br>&amp; Dalgona Coffee</h1><p>${OPEN ? "Pesan dari sekarang, ambil " + (BUKA_TANGGAL ? "tanggal " : "") + tgl : "Pemesanan sudah ditutup. Terima kasih!"}</p></div>
     <div class="grid">${prod("n")}${prod("g")}</div><div id="bar"></div><div id="sheet"></div>`;
 }
 function prod(k) {
@@ -15,7 +23,7 @@ function prod(k) {
   return `<div class="prod ${n ? "menu-n" : "menu-g"}"><div class="ph" data-e="${n ? "🍗" : "☕"}"><img src="${ASSET_BASE + (n ? GAMBAR_NUGGET : GAMBAR_DALGONA)}" alt="" onerror="this.parentNode.classList.add('nofoto');this.remove()"></div>
     <div class="pb"><b class="menu-t">${n ? "Nugget Geprek" : "Dalgona Coffee"}</b>
     <div class="text-sm text-stone-500">${n ? `${rp(HARGA_NUGGET_PER_PCS)}/pcs · ${rp(HARGA_NUGGET_PER_PCS * ISI_PER_PORSI)}/porsi` : `${rp(HARGA_DALGONA)}/cup`}</div>
-    <button class="${BTN} w-full mt-2" onclick="openSheet('${k}')">+ Pesan</button></div></div>`;
+    <button class="${BTN} w-full mt-2" ${OPEN ? "" : "disabled"} onclick="openSheet('${k}')">${OPEN ? "+ Pesan" : "Ditutup"}</button></div></div>`;
 }
 function drawBar() {
   $("#bar").innerHTML = total(cart) ? `<div class="bar"><div><div class="text-xs text-stone-500">Total</div><b class="text-xl">${rp(total(cart))}</b></div><button class="${BTN}" onclick="drawCo()">Checkout →</button></div>` : "";
@@ -49,14 +57,16 @@ function setCo(k, v) { co[k] = v; drawCo(); }
 function rmItem(k) { cart[k] = null; drawBar(); total(cart) ? drawCo() : closeSheet(); }
 function drawCo() {
   const c = cart;
-  $("#sheet").innerHTML = `<div class="ov" onclick="closeSheet()"></div><div class="sh"><div class="grab"></div><h2 class="menu-t text-xl mb-2">Keranjang · Take Away</h2>
+  $("#sheet").innerHTML = `<div class="ov" onclick="closeSheet()"></div><div class="sh"><div class="grab"></div><h2 class="menu-t text-xl">Keranjang</h2><div class="text-sm text-stone-500 mb-2">📅 Diambil: ${tglAmbil()} · Take Away</div>
     ${c.n ? `<div class="row">🍗 Nugget ${c.n.pcs} pcs · Pedas ${c.n.pedas}<button onclick="rmItem('n')">✕</button></div>` : ""}
     ${c.g ? `<div class="row">☕ Dalgona ${c.g.cup} cup · ${esc(c.g.es)}<button onclick="rmItem('g')">✕</button></div>` : ""}
     <input class="${IN} mt-2" placeholder="Nama pemesan" value="${esc(co.nama)}" oninput="co.nama=this.value">
     <input type="tel" class="${IN}" placeholder="No. WhatsApp (08xxx)" value="${esc(co.hp)}" oninput="co.hp=this.value">
-    <div class="lbl">Pembayaran</div>${chips("pay", [["QRIS", "QRIS Online"], ["OFFLINE", "Bayar di Kasir"]], co.pay, "setCo")}
+    <div class="lbl">Cara pembayaran</div>
+    ${payOpt("QRIS", "📱", "QRIS Online", "Bayar sekarang lewat e-wallet / m-banking. Otomatis terkonfirmasi, pesananmu dipastikan untuk diambil.")}
+    ${payOpt("OFFLINE", "💵", "Bayar Cash", "Bayar tunai ke nomor " + hpCash() + " (WhatsApp). Pesanan dibuat setelah pembayaran dikonfirmasi.")}
     <div id="ce" class="text-red-600 text-sm mt-2"></div>
-    <button class="${BTN} w-full mt-2" onclick="submitOrder()">Pesan • ${rp(total(c))}</button></div>`;
+    <button class="${BTN} w-full mt-2" onclick="submitOrder()">${co.pay === "QRIS" ? "Bayar QRIS" : "Pesan & Bayar Cash"} • ${rp(total(c))}</button></div>`;
 }
 async function submitOrder() {
   if (!co.nama.trim() || !co.hp.trim()) return $("#ce").textContent = "Nama dan No. WhatsApp wajib diisi";
@@ -66,8 +76,9 @@ async function submitOrder() {
   track(r.id);
 }
 
-const LBL = {MENUNGGU:"Menunggu Bayar 💳", DIMASAK:"Sedang Dibuat ⏳", SELESAI:"Selesai ✅"};
+const LBL = {ANTRI:"Dijadwalkan 📅", MENUNGGU:"Menunggu Bayar 💳", DIMASAK:"Sedang Dibuat ⏳", SELESAI:"Selesai ✅"};
 async function track(id) {
+  await loadConfig();
   $("#app").innerHTML = `<div id="t"></div>`;
   let built = false, alerted = false;
   const tick = async () => {
@@ -76,12 +87,12 @@ async function track(id) {
     if (!built) {
       built = true;
       $("#t").innerHTML = `<div class="${CARD}"><div class="text-sm">ID Pesanan</div><div class="text-xl font-bold">${esc(o.ID_Pesanan)}</div>
-        <div>${esc(o.Nama_Pemesan)} · ${esc(o.Nomor_Meja)} · ${rp(o.Total_Harga)}</div></div>
+        <div>${esc(o.Nama_Pemesan)} · ${esc(o.Nomor_Meja)} · ${rp(o.Total_Harga)}</div><span class="chip mt-1">${o.Metode_Pembayaran === "QRIS" ? "📱 QRIS Online" : "💵 Bayar Cash"}</span></div>
         <div id="pay" class="${CARD} flex flex-col items-center"></div><div id="st"></div>
         <button class="${BTN} mt-3" onclick="newOrder()">Pesan baru</button>`;
       const box = $("#pay");
       if (o.Status_Pembayaran !== "LUNAS") {
-        box.innerHTML = `<div class="mb-2 font-semibold">${o.Metode_Pembayaran === "QRIS" ? "Scan QRIS untuk membayar" : "Tunjukkan QR ini ke kasir"}</div><div id="qr"></div>`;
+        box.innerHTML = `<div class="mb-1 font-bold">${o.Metode_Pembayaran === "QRIS" ? "Scan QRIS untuk membayar" : "Bayar Cash"}</div><div class="text-sm text-stone-500 mb-2 text-center">${o.Metode_Pembayaran === "QRIS" ? "Buka e-wallet / m-banking lalu scan. Halaman ini otomatis berubah setelah lunas." : `Hubungi ${hpCash()} lewat WhatsApp, sebutkan ID pesanan, lalu bayar cash. Pesanan dibuat setelah pembayaran dikonfirmasi.`}</div><div id="qr"></div>${o.Metode_Pembayaran === "QRIS" ? "" : `<a class="btn mt-3" target="_blank" href="https://wa.me/${NOMOR_CASH}?text=${encodeURIComponent("Halo, saya mau bayar cash untuk pesanan " + o.ID_Pesanan)}">💬 Chat WhatsApp ${hpCash()}</a><div class="text-xs text-stone-500 mt-2 text-center">Atau tunjukkan QR di atas ke kasir saat mengambil.</div>`}`;
         if (o.Metode_Pembayaran === "QRIS") makeQris(o); else new QRCode($("#qr"), {text:o.ID_Pesanan, width:200, height:200});
       } else box.remove();
     }
@@ -89,7 +100,7 @@ async function track(id) {
       get({action:"check_qris", id}).then(r => { if (r.gw === "expired" && $("#qr")) $("#qr").innerHTML = "⛔ QRIS kedaluwarsa. Silakan pesan ulang."; });
     if (o.Status_Pembayaran === "LUNAS" && $("#pay")) $("#pay").remove();
     const siap = o.Status_Pesanan === "SIAP_DIAMBIL";
-    $("#st").innerHTML = (siap ? `<div class="ready">✅ PESANAN SIAP DIAMBIL!</div>` : "") +
+    $("#st").innerHTML = (o.Status_Nugget === "ANTRI" || o.Status_Dalgona === "ANTRI" ? `<div class="${CARD} text-center">📅 Pesananmu terjadwal. Ambil tanggal <b>${tglAmbil()}</b></div>` : "") + (siap ? `<div class="ready">✅ PESANAN SIAP DIAMBIL!</div>` : "") +
       `<div class="${CARD}">${o.Status_Nugget !== "NONE" ? `<div class="row">🍗 Nugget Geprek<span class="chip c-${o.Status_Nugget}">${LBL[o.Status_Nugget]}</span></div>` : ""}
        ${o.Status_Dalgona !== "NONE" ? `<div class="row">☕ Dalgona Coffee<span class="chip c-${o.Status_Dalgona}">${LBL[o.Status_Dalgona]}</span></div>` : ""}</div>`;
     if (siap && !alerted) { alerted = true; beep(); }

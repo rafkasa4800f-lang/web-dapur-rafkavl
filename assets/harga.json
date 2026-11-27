@@ -1,6 +1,10 @@
 {
-  "Harga_Nugget_Per_Pcs": 1400,
+  "Harga_Nugget_Per_Pcs": 2000,
   "Isi_Per_Porsi": 5,
-  "Harga_Dalgona": 7000,
-  "Nama_Kasir": "Haris Mutawakkil"
+  "Harga_Dalgona": 12000,
+  "Nama_Kasir": "Haris Mutawakkil",
+  "Gambar_Nugget": "img/nugget.svg",
+  "Gambar_Dalgona": "img/dalgona.svg",
+  "Tanggal_Ambil": "2026-12-10",
+  "Nomor_Cash": "6285178399532"
 }
