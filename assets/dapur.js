@@ -11,8 +11,8 @@ function dapur(s, st) { // st: "Nugget" | "Dalgona"
     last = l.length;
     $("#q").innerHTML = l.map((o, i) => {
       const d = JSON.parse(o["Detail_" + st]);
-      return `<div class="${CARD}" style="border-left:5px solid ${nugget ? "#fb923c" : "#d6a77a"}"><div class="text-sm">#${i + 1} · ${esc(o.ID_Pesanan)} · Meja ${esc(o.Nomor_Meja)} · ${esc(o.Nama_Pemesan)}</div>
-        <div class="text-3xl font-bold my-1">${nugget ? `${d.pcs} pcs · Pedas ${d.pedas}` : `${d.cup} cup · ${esc(d.es)} · Gula ${esc(d.gula)}`}</div>
+      return `<div class="${CARD}" style="border-left:5px solid ${nugget ? "#fb923c" : "#d6a77a"}"><div class="text-sm">#${i + 1} · ${esc(o.ID_Pesanan)} · ${esc(o.Nomor_Meja)} · ${esc(o.Nama_Pemesan)}</div>
+        <div class="text-3xl font-bold my-1">${nugget ? `${d.mode === "p" ? d.qty + " porsi · " : ""}${d.pcs} pcs · Pedas ${d.pedas}` : `${d.cup} cup · ${esc(d.es)} · Gula ${esc(d.gula)}`}</div>
         <div class="mb-2">${esc(d.cat || "")}</div>
         <button class="${BTN} w-full bg-green-600 text-xl" onclick="fin('${o.ID_Pesanan}')">${st.toUpperCase()} SELESAI</button></div>`;
     }).join("") || `<div class="text-center text-stone-400 mt-10">Tidak ada antrean</div>`;

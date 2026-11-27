@@ -1,6 +1,7 @@
 /* ============ PELANGGAN (Take Away) ============ */
 let OPEN = true, cart = {n:null, g:null}, f = {}, co = {nama:"", hp:"", pay:"QRIS"};
-const total = c => (c.n ? c.n.pcs * HARGA_NUGGET_PER_PCS : 0) + (c.g ? c.g.cup * HARGA_DALGONA : 0);
+const nPrice = n => n.mode === "p" ? n.qty * HARGA_NUGGET_PER_PORSI : n.pcs * HARGA_NUGGET_PER_PCS;
+const total = c => (c.n ? nPrice(c.n) : 0) + (c.g ? c.g.cup * HARGA_DALGONA : 0);
 const chips = (key, opts, sel, fn = "setF") => `<div class="chips">${opts.map(([v, l]) => `<button class="ch ${String(v) === String(sel) ? "on" : ""}" onclick="${fn}('${key}','${v}')">${l}</button>`).join("")}</div>`;
 
 const payOpt = (v, i, t, d) => `<button class="pay ${co.pay === v ? "on" : ""}" onclick="setCo('pay','${v}')"><span class="pi">${i}</span><span><b>${t}</b><br><small>${d}</small></span></button>`;
@@ -22,7 +23,7 @@ function prod(k) {
   const n = k === "n";
   return `<div class="prod ${n ? "menu-n" : "menu-g"}"><div class="ph" data-e="${n ? "🍗" : "☕"}"><img src="${ASSET_BASE + (n ? GAMBAR_NUGGET : GAMBAR_DALGONA)}" alt="" onerror="this.parentNode.classList.add('nofoto');this.remove()"></div>
     <div class="pb"><b class="menu-t">${n ? "Nugget Geprek" : "Dalgona Coffee"}</b>
-    <div class="text-sm text-stone-500">${n ? `${rp(HARGA_NUGGET_PER_PCS)}/pcs · ${rp(HARGA_NUGGET_PER_PCS * ISI_PER_PORSI)}/porsi` : `${rp(HARGA_DALGONA)}/cup`}</div>
+    <div class="text-sm text-stone-500">${n ? `${rp(HARGA_NUGGET_PER_PORSI)}/porsi (${ISI_PER_PORSI} pcs) · ${rp(HARGA_NUGGET_PER_PCS)}/pcs` : `${rp(HARGA_DALGONA)}/cup`}</div>
     <button class="${BTN} w-full mt-2" ${OPEN ? "" : "disabled"} onclick="openSheet('${k}')">${OPEN ? "+ Pesan" : "Ditutup"}</button></div></div>`;
 }
 function drawBar() {
@@ -33,14 +34,14 @@ function openSheet(k) {
   drawSheet();
 }
 const pcs = () => f.mode === "p" ? f.q * ISI_PER_PORSI : f.q;
-const price = () => f.k === "n" ? pcs() * HARGA_NUGGET_PER_PCS : f.q * HARGA_DALGONA;
+const price = () => f.k === "n" ? nPrice({mode:f.mode, qty:f.q, pcs:pcs()}) : f.q * HARGA_DALGONA;
 function setF(k, v) { f[k] = k === "pedas" ? +v : v; drawSheet(); }
 function stp(d) { f.q = Math.max(1, f.q + d); drawSheet(); }
 function drawSheet() {
   const n = f.k === "n";
   $("#sheet").innerHTML = `<div class="ov" onclick="closeSheet()"></div><div class="sh"><div class="grab"></div>
     <h2 class="menu-t text-xl mb-3">${n ? "🍗 Nugget Geprek" : "☕ Dalgona Coffee"}</h2>
-    ${n ? `<div class="lbl">Mode</div>${chips("mode", [["p", `Porsi (${ISI_PER_PORSI} pcs)`], ["c", "Custom pcs"]], f.mode)}` : ""}
+    ${n ? `<div class="lbl">Mode</div>${chips("mode", [["p", `Porsi (${ISI_PER_PORSI} pcs) · ${rp(HARGA_NUGGET_PER_PORSI)}`], ["c", `Custom pcs · ${rp(HARGA_NUGGET_PER_PCS)}/pcs`]], f.mode)}` : ""}
     <div class="lbl">${n ? (f.mode === "p" ? "Jumlah porsi" : "Jumlah pcs") : "Jumlah cup"}</div>
     <div class="step"><button onclick="stp(-1)">−</button><b>${f.q}</b><button onclick="stp(1)">+</button>${n ? `<span class="text-sm text-stone-500">= ${pcs()} pcs</span>` : ""}</div>
     ${n ? `<div class="lbl">Level pedas</div>${chips("pedas", [0, 1, 2, 3, 4, 5].map(i => [i, i]), f.pedas)}`
@@ -49,7 +50,7 @@ function drawSheet() {
     <button class="${BTN} w-full" onclick="saveItem()">Tambah • ${rp(price())}</button></div>`;
 }
 function saveItem() {
-  if (f.k === "n") cart.n = {pcs:pcs(), pedas:f.pedas, cat:f.cat}; else cart.g = {cup:f.q, es:f.es, gula:f.gula, cat:f.cat};
+  if (f.k === "n") cart.n = {mode:f.mode, qty:f.q, pcs:pcs(), pedas:f.pedas, cat:f.cat}; else cart.g = {cup:f.q, es:f.es, gula:f.gula, cat:f.cat};
   closeSheet(); drawBar();
 }
 function closeSheet() { $("#sheet").innerHTML = ""; }
@@ -58,7 +59,7 @@ function rmItem(k) { cart[k] = null; drawBar(); total(cart) ? drawCo() : closeSh
 function drawCo() {
   const c = cart;
   $("#sheet").innerHTML = `<div class="ov" onclick="closeSheet()"></div><div class="sh"><div class="grab"></div><h2 class="menu-t text-xl">Keranjang</h2><div class="text-sm text-stone-500 mb-2">📅 Diambil: ${tglAmbil()} · Take Away</div>
-    ${c.n ? `<div class="row">🍗 Nugget ${c.n.pcs} pcs · Pedas ${c.n.pedas}<button onclick="rmItem('n')">✕</button></div>` : ""}
+    ${c.n ? `<div class="row">🍗 Nugget ${c.n.mode === "p" ? c.n.qty + " porsi (" + c.n.pcs + " pcs)" : c.n.pcs + " pcs"} · Pedas ${c.n.pedas}<button onclick="rmItem('n')">✕</button></div>` : ""}
     ${c.g ? `<div class="row">☕ Dalgona ${c.g.cup} cup · ${esc(c.g.es)}<button onclick="rmItem('g')">✕</button></div>` : ""}
     <input class="${IN} mt-2" placeholder="Nama pemesan" value="${esc(co.nama)}" oninput="co.nama=this.value">
     <input type="tel" class="${IN}" placeholder="No. WhatsApp (08xxx)" value="${esc(co.hp)}" oninput="co.hp=this.value">
